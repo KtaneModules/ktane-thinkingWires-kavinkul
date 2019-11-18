@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -94,9 +94,7 @@ public class thinkingWiresScript : MonoBehaviour
         for (int index = 0; index < 7; index++)
         {
             isCut[index] = false;
-            wires[index].enabled = true;
             wiresObject[index].transform.Find("Wire " + (index + 1).ToString()).gameObject.SetActive(true);
-            wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(true);
             wiresObject[index].transform.Find("CutWire " + (index + 1).ToString()).gameObject.SetActive(false);
         }
         SelectColors();
@@ -167,6 +165,11 @@ public class thinkingWiresScript : MonoBehaviour
         GetComponent<KMAudio>().PlayGameSoundAtTransformWithRef(KMSoundOverride.SoundEffect.WireSequenceMechanism, transform);
         if (isOpen)
         {
+            for (int index = 0; index < 7; index++)
+            {
+                wires[index].enabled = false;
+                wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(false);
+            }
             for (int i = 0; i < 11; i++)
             {
                 wiresObject[0].transform.localPosition += new Vector3(0, -0.001f, 0);
@@ -203,6 +206,11 @@ public class thinkingWiresScript : MonoBehaviour
                 wiresObject[5].transform.localPosition += new Vector3(0, 0.001f, 0);
                 wiresObject[6].transform.localPosition += new Vector3(0, 0.001f, 0);
                 yield return new WaitForSeconds(0.01F);
+            }
+            for (int index = 0; index < 7; index++)
+            {
+                wires[index].enabled = true;
+                wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(true);
             }
             doorOpened = true;
         }
@@ -732,9 +740,9 @@ public class thinkingWiresScript : MonoBehaviour
 
     public IEnumerator ProcessTwitchCommand(string command)
     {
-        if (!activated)
+        if (!activated || handlingStrike)
         {
-            yield return "sendtochaterror The module is not yet ready to be interacted with. Please wait until the module activates.";
+            yield return "sendtochaterror The module is not yet ready to be interacted with. Please wait until the module activates or finishes giving a strike.";
             yield break;
         }
         string[] parameters = command.Split(' ');
