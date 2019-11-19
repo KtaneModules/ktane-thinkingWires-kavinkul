@@ -13,10 +13,12 @@ public class thinkingWiresScript : MonoBehaviour
     public KMAudio audio;
     public KMBombModule module;
     public KMSelectable[] wires;
+    public KMColorblindMode ColorblindMode;
 
     public GameObject[] wiresObject;
     public GameObject[] sevenSegmentsObject;
     public GameObject door;
+    public GameObject[] colorblindTexts;
 
     public Material[] wireColors;
     public Material[] sevenSegmentsColors;
@@ -34,6 +36,7 @@ public class thinkingWiresScript : MonoBehaviour
     private string screenNumber;
     private bool handlingStrike;
     private bool[] isCut = new bool[7];
+    private bool colorblind = false;
 
     bool wireToCutFound = false; //A measure to prevent hanging the game from infinite while loop
     bool breakSuccessful = false;
@@ -47,6 +50,7 @@ public class thinkingWiresScript : MonoBehaviour
 
     private void Start()
     {
+        colorblind = ColorblindMode.ColorblindModeActive;
         moduleId = moduleIdCounter++;
         module.OnActivate += Activate;
         doorOpened = false;
@@ -72,7 +76,6 @@ public class thinkingWiresScript : MonoBehaviour
 	// Use this for initialization
 	private void Activate()
     {
-        activated = true;
         StartCoroutine(Initialization());
     }
 
@@ -100,6 +103,7 @@ public class thinkingWiresScript : MonoBehaviour
         SelectColors();
         GenerateAnswerStage1();
         yield return StartCoroutine(AnimatingDoor(false));
+        activated = true;
         handlingStrike = false;
     }
 
@@ -170,6 +174,13 @@ public class thinkingWiresScript : MonoBehaviour
                 wires[index].enabled = false;
                 wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(false);
             }
+            if (colorblind)
+            {
+                for (int index = 0; index < 7; index++)
+                {
+                    colorblindTexts[index].gameObject.SetActive(false);
+                }
+            }
             for (int i = 0; i < 11; i++)
             {
                 wiresObject[0].transform.localPosition += new Vector3(0, -0.001f, 0);
@@ -195,6 +206,13 @@ public class thinkingWiresScript : MonoBehaviour
             {
                 door.transform.localScale -= new Vector3(1, 0, 0);
                 yield return new WaitForSeconds(0.005F);
+            }
+            if (colorblind)
+            {
+                for (int index = 0; index < 7; index++)
+                {
+                    colorblindTexts[index].gameObject.SetActive(true);
+                }
             }
             for (int i = 0; i < 11; i++)
             {
@@ -252,6 +270,14 @@ public class thinkingWiresScript : MonoBehaviour
             {
                 wireColorNames[index] = wireColors[randomColorIndex].name.ToUpperInvariant();
                 originalColorNames[index] = wireColors[randomColorIndex].name.ToUpperInvariant();
+            }
+            if (originalColorNames[index] == "Black")
+            {
+                colorblindTexts[index].GetComponent<TextMesh>().text = "K";
+            }
+            else
+            {
+                colorblindTexts[index].GetComponent<TextMesh>().text = originalColorNames[index][0].ToString();
             }
         }
         Debug.LogFormat("[Thinking Wires #{0}] Wires colors from top to bottom: [{1}]", moduleId, wireColorNames.Join(", "));
@@ -745,11 +771,19 @@ public class thinkingWiresScript : MonoBehaviour
             yield return "sendtochaterror The module is not yet ready to be interacted with. Please wait until the module activates or finishes giving a strike.";
             yield break;
         }
+        if (Regex.IsMatch(command, @"^\s*colorblind\s*$|^\s*colourblind\s*$|^\s*colo\(u\)rblind\s*$|^\s*blind\s*$|^\s*color\s*$|^\s*colour\s*$|^\s*colo\(u\)r\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) && !colorblind)
+        {
+            colorblind = true;
+            for (int index = 0; index < 7; index++)
+                colorblindTexts[index].gameObject.SetActive(true);
+            yield return null;
+            yield break;
+        }
         string[] parameters = command.Split(' ');
         if (Regex.IsMatch(parameters[0], @"^\s*cut\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) && parameters.Length == 2)
         {
             if (Regex.IsMatch(parameters[1], @"^\s*[1-7]\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-            {
+            {   
                 int wireNumber;
                 if (int.TryParse(parameters[1], out wireNumber))
                 {

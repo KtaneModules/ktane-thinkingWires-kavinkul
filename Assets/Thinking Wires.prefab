@@ -1256,7 +1256,7 @@ Transform:
   m_GameObject: {fileID: 1947131233244184}
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0, w: 0.7071068}
   m_LocalPosition: {x: 0.002131464, y: -0.0027394528, z: 0.039915215}
-  m_LocalScale: {x: 0.020000052, y: 0.01, z: 0.020000052}
+  m_LocalScale: {x: 0.020000052, y: 0.01, z: 0.02000005}
   m_Children: []
   m_Father: {fileID: 4045171497011102}
   m_RootOrder: 1
@@ -4229,7 +4229,7 @@ MonoBehaviour:
   - {fileID: 114736386731120700}
   - {fileID: 114296180997449582}
   IsPassThrough: 0
-  ChildRowLength: 0
+  ChildRowLength: 1
   Highlight: {fileID: 114791555378066650}
   SelectableColliders: []
   DefaultSelectableIndex: 0
@@ -4509,14 +4509,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   audio: {fileID: 114691631127495358}
   module: {fileID: 114670136821971400}
-  wires:
-  - {fileID: 114409097095542086}
-  - {fileID: 114693219377859372}
-  - {fileID: 114215389296231626}
-  - {fileID: 114580934711527582}
-  - {fileID: 114133219676882786}
-  - {fileID: 114736386731120700}
-  - {fileID: 114296180997449582}
+  moduleSelectable: {fileID: 114467617284132864}
   ColorblindMode: {fileID: 114474376750866920}
   wiresObject:
   - {fileID: 1442103186937672}
@@ -4551,6 +4544,13 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 0b8345d6190d14013b825698a59f7759, type: 2}
   - {fileID: 2100000, guid: df5aa6caab350c64e9473c1d8f0795cf, type: 2}
   - {fileID: 2100000, guid: c92df957d0075664b9b1991ed1815c6a, type: 2}
+  TwitchHelpMessage: 'Use !{0} cut 5 to cut any wire ranging from 1 to 7 where wire
+    1 is the topmost wire.\nColo(u)rblind mode: Use !{0} <keyword> to activate colo(u)rblind
+    where the possible keywords are colorblind, colourblind, colo(u)rblind, blind,
+    color, colour, colo(u)r, Where are colors?, What colors?, Where are colours?,
+    What colours?, Where are colo(u)rs?, What colo(u)rs?, I''m colorblind!, I''m colourblind!,
+    I''m colo(u)rblind!, Color god please help me, Colour god please help me, Colo(u)r
+    god please help me'
 --- !u!114 &114789760400598716
 MonoBehaviour:
   m_ObjectHideFlags: 1
