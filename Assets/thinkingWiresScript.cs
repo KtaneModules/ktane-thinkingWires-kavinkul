@@ -12,7 +12,7 @@ public class thinkingWiresScript : MonoBehaviour
 
     public KMAudio audio;
     public KMBombModule module;
-    public KMSelectable[] wires;
+    public KMSelectable moduleSelectable;
     public KMColorblindMode ColorblindMode;
 
     public GameObject[] wiresObject;
@@ -23,6 +23,7 @@ public class thinkingWiresScript : MonoBehaviour
     public Material[] wireColors;
     public Material[] sevenSegmentsColors;
 
+    private KMSelectable[] wires = new KMSelectable[7];
     private string[] wireColorNames = new string[7];
     private string[] originalColorNames = new string[7];
     private int[] colorIndex = new int[7];
@@ -37,7 +38,7 @@ public class thinkingWiresScript : MonoBehaviour
     private bool handlingStrike;
     private bool[] isCut = new bool[7];
     private bool colorblind = false;
-
+   
     bool wireToCutFound = false; //A measure to prevent hanging the game from infinite while loop
     bool breakSuccessful = false;
     bool doorOpened = false;
@@ -47,17 +48,17 @@ public class thinkingWiresScript : MonoBehaviour
     int moduleId;
     private bool moduleSolved;
 
-
     private void Start()
     {
         colorblind = ColorblindMode.ColorblindModeActive;
         moduleId = moduleIdCounter++;
         module.OnActivate += Activate;
         doorOpened = false;
-        foreach (KMSelectable obj in wires)
+        for (int index = 0; index < 7; index++)
         {
-            KMSelectable wireCut = obj;
-            wireCut.OnInteract += delegate () { CutWires(Array.IndexOf(wires, wireCut)); return false; };
+            var j = index;
+            wires[j] = wiresObject[j].transform.Find("Wire " + (j + 1).ToString()).GetComponent<KMSelectable>();
+            wires[j].OnInteract += delegate () { CutWires(j); return false; };
         }
         wiresObject[0].transform.localPosition += new Vector3(0, -0.011f, 0);
         wiresObject[1].transform.localPosition += new Vector3(0, -0.011f, 0);
@@ -70,7 +71,10 @@ public class thinkingWiresScript : MonoBehaviour
         {
             wires[index].enabled = false;
             wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(false);
+            if (index != 0)
+                moduleSelectable.Children[index] = null;
         }
+        moduleSelectable.UpdateChildren();
     }
 
 	// Use this for initialization
@@ -109,18 +113,22 @@ public class thinkingWiresScript : MonoBehaviour
 
     private void CutWires(int cutWireIndex)
     {
-        audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, transform);
-        isCut[cutWireIndex] = true;
-        wires[cutWireIndex].enabled = false;
-        wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(false);
-        wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString() + " Highlight").gameObject.SetActive(false);
-        wiresObject[cutWireIndex].transform.Find("CutWire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(true);
-
-        foreach (Renderer r in wiresObject[cutWireIndex].GetComponentsInChildren<Renderer>())
+        if (doorOpened)
         {
-            r.material = wireColors[colorIndex[cutWireIndex]];
+            audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, transform);
+            isCut[cutWireIndex] = true;
+            wires[cutWireIndex].enabled = false;
+            wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(false);
+            wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString() + " Highlight").gameObject.SetActive(false);
+            wiresObject[cutWireIndex].transform.Find("CutWire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(true);
+            foreach (Renderer r in wiresObject[cutWireIndex].GetComponentsInChildren<Renderer>())
+            {
+                r.material = wireColors[colorIndex[cutWireIndex]];
+            }
+            moduleSelectable.Children[cutWireIndex] = null;
+            moduleSelectable.UpdateChildren();
         }
-        if (!moduleSolved && !handlingStrike)
+        if (!moduleSolved && !handlingStrike && doorOpened)
         {
             if (!secondStage)
             {
@@ -157,6 +165,27 @@ public class thinkingWiresScript : MonoBehaviour
         }
     }
 	
+    private IEnumerator SetSelectables(bool notEmpty)
+    {
+        List<KMSelectable> newSelectables = new List<KMSelectable>();
+        if (notEmpty)
+        {
+            for (int index = 0; index < 7; index++)
+            {
+                newSelectables.Add(wires[index]);
+            }
+            moduleSelectable.Children = newSelectables.ToArray();
+        }
+        else
+        {
+            for (int index = 1; index < 7; index++)
+                moduleSelectable.Children[index] = null;
+        }
+        moduleSelectable.Children[0] = wires[0]; //Serves as a dummy selectable to ensure that the gamepad can be used to unview the module
+        yield return null;
+        moduleSelectable.UpdateChildren();
+    }
+
     private IEnumerator Strike()
     {
         module.HandleStrike();
@@ -169,6 +198,7 @@ public class thinkingWiresScript : MonoBehaviour
         GetComponent<KMAudio>().PlayGameSoundAtTransformWithRef(KMSoundOverride.SoundEffect.WireSequenceMechanism, transform);
         if (isOpen)
         {
+            yield return StartCoroutine(SetSelectables(false));
             for (int index = 0; index < 7; index++)
             {
                 wires[index].enabled = false;
@@ -230,6 +260,7 @@ public class thinkingWiresScript : MonoBehaviour
                 wires[index].enabled = true;
                 wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(true);
             }
+            yield return StartCoroutine(SetSelectables(true));
             doorOpened = true;
         }
     }
@@ -584,7 +615,7 @@ public class thinkingWiresScript : MonoBehaviour
                     boxColor.Add("Yellow");
                     break;
                 case 19:
-                    currentBoxIndex = 21;
+                    currentBoxIndex = 22;
                     Debug.LogFormat("[Thinking Wires #{0}] No condition to check. (An empty box)", moduleId);
                     boxCounter++;
                     boxColor.Add("Cyan");
@@ -656,7 +687,6 @@ public class thinkingWiresScript : MonoBehaviour
         }
         Debug.LogFormat("[Thinking Wires #{0}] The display number is {1}.", moduleId, screenNumber);
         Debug.LogFormat("[Thinking Wires #{0}] The second wire that is needed to be cut is {1} wire.", moduleId, secondWireToCut);
-  
     }
 
     void SevenSegmentsDisplay()
@@ -761,8 +791,33 @@ public class thinkingWiresScript : MonoBehaviour
 
     //Twitch Plays
     #pragma warning disable 414
-    private readonly string TwitchHelpMessage = @"Use !{0} cut 5 to cut any wire ranging from 1 to 7 where wire 1 is the topmost wire.";
+    private readonly string TwitchHelpMessage = @"Use !{0} cut 5 to cut any wire ranging from 1 to 7 where wire 1 is the topmost wire.\n" + "Colo(u)rblind mode: Use !{0} <keyword> to activate colo(u)rblind where the possible keywords are colorblind, colourblind, colo(u)rblind, blind, color, colour, colo(u)r, Where are colors?, What colors?, Where are colours?, What colours?, Where are colo(u)rs?, What colo(u)rs?, I'm colorblind!, I'm colourblind!, I'm colo(u)rblind!, Color god please help me, Colour god please help me, Colo(u)r god please help me";
     #pragma warning restore 414
+
+    public IEnumerator TwitchHandleForcedSolve()
+    {
+        while(!moduleSolved && (handlingStrike || !doorOpened))
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+        yield return null;
+
+        if (!secondStage)
+        {
+            wires[firstWireToCut - 1].OnInteract();
+            yield return new WaitForSeconds(0.2f);
+        }
+        for (int index = 0; index < 7; index++)
+        {
+            if(!isCut[index] && originalColorNames[index] == secondWireToCut)
+            {
+                wires[index].OnInteract();
+                yield return new WaitForSeconds(0.2f);
+                break;
+            }
+        }
+        yield break;
+    }
 
     public IEnumerator ProcessTwitchCommand(string command)
     {
@@ -771,7 +826,7 @@ public class thinkingWiresScript : MonoBehaviour
             yield return "sendtochaterror The module is not yet ready to be interacted with. Please wait until the module activates or finishes giving a strike.";
             yield break;
         }
-        if (Regex.IsMatch(command, @"^\s*colorblind\s*$|^\s*colourblind\s*$|^\s*colo\(u\)rblind\s*$|^\s*blind\s*$|^\s*color\s*$|^\s*colour\s*$|^\s*colo\(u\)r\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) && !colorblind)
+        if (Regex.IsMatch(command, @"^\s*(((?=[cb])(colo(u|\(u\))?r)?(blind)?)|(I'm\s+colo(u|\(u\))?rblind!)|(((Where\s+are)|(What))\s+colo(u|\(u\))?rs\?)|(Colo(u|\(u\))?r\s+god\s+please\s+help\s+me))\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) && !colorblind)
         {
             colorblind = true;
             for (int index = 0; index < 7; index++)
@@ -814,7 +869,7 @@ public class thinkingWiresScript : MonoBehaviour
         }
         else
         {
-            yield return "sendtochaterror Invalid command: The command must start with \"cut\" and followed by a number from 1 - 7 with space in between.";
+            yield return "sendtochaterror Invalid command: The command must start with \"cut\" and followed by a number from 1 - 7 with space in between, or the command must match with any of the colo(u)rblind commands.";
             yield break;
         }
         yield break;
