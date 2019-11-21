@@ -791,7 +791,7 @@ public class thinkingWiresScript : MonoBehaviour
 
     //Twitch Plays
     #pragma warning disable 414
-    private readonly string TwitchHelpMessage = @"Use !{0} cut 5 to cut any wire ranging from 1 to 7 where wire 1 is the topmost wire.\n" + "Colo(u)rblind mode: Use !{0} <keyword> to activate colo(u)rblind where the possible keywords are colorblind, colourblind, colo(u)rblind, blind, color, colour, colo(u)r, Where are colors?, What colors?, Where are colours?, What colours?, Where are colo(u)rs?, What colo(u)rs?, I'm colorblind!, I'm colourblind!, I'm colo(u)rblind!, Color god please help me, Colour god please help me, Colo(u)r god please help me";
+    private readonly string TwitchHelpMessage = "Use !{0} cut 5 to cut any wire ranging from 1 to 7 where wire 1 is the topmost wire.\n Colo(u)rblind mode: Use !{0} <keyword> to activate colo(u)rblind where the possible keywords are colorblind, colourblind, colo(u)rblind, blind, color, colour, colo(u)r, Where are colors?, What colors?, Where are colours?, What colours?, Where are colo(u)rs?, What colo(u)rs?, I'm colorblind!, I'm colourblind!, I'm colo(u)rblind!, Color god please help me, Colour god please help me, Colo(u)r god please help me";
     #pragma warning restore 414
 
     public IEnumerator TwitchHandleForcedSolve()
