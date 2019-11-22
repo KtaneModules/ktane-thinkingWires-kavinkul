@@ -796,27 +796,28 @@ public class thinkingWiresScript : MonoBehaviour
 
     public IEnumerator TwitchHandleForcedSolve()
     {
-        while(!moduleSolved && (handlingStrike || !doorOpened))
+        yield return null;
+        while (!moduleSolved)
         {
             yield return new WaitForSeconds(0.1f);
-        }
-        yield return null;
-
-        if (!secondStage)
-        {
-            wires[firstWireToCut - 1].OnInteract();
-            yield return new WaitForSeconds(0.2f);
-        }
-        for (int index = 0; index < 7; index++)
-        {
-            if(!isCut[index] && originalColorNames[index] == secondWireToCut)
+            if (!handlingStrike && doorOpened)
             {
-                wires[index].OnInteract();
-                yield return new WaitForSeconds(0.2f);
-                break;
+                if (!secondStage)
+                {
+                    wires[firstWireToCut - 1].OnInteract();
+                    yield return new WaitForSeconds(0.2f);
+                }
+                for (int index = 0; index < 7; index++)
+                {
+                    if (!isCut[index] && originalColorNames[index] == secondWireToCut)
+                    {
+                        wires[index].OnInteract();
+                        yield return new WaitForSeconds(0.2f);
+                        break;
+                    }
+                }
             }
         }
-        yield break;
     }
 
     public IEnumerator ProcessTwitchCommand(string command)
