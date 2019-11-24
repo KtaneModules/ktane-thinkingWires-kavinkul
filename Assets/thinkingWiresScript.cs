@@ -445,7 +445,7 @@ public class thinkingWiresScript : MonoBehaviour
                     boxColor.Add("Magenta");
                     break;
                 case 8:
-                    if (wireColorNames[2] != "Black" || wireColorNames[2] != "Blue" || wireColorNames[2] != "Yellow")
+                    if (wireColorNames[2] != "Black" && wireColorNames[2] != "Blue" && wireColorNames[2] != "Yellow")
                     {
                         currentBoxIndex = 6;
                         Debug.LogFormat("[Thinking Wires #{0}] 3rd wire not black, blue, or yellow: {1}", moduleId, "Yes");
