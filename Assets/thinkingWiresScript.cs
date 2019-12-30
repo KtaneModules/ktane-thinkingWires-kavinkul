@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
 using KModkit;
+using ThinkingWires;
 
 public class thinkingWiresScript : MonoBehaviour
 {
@@ -30,7 +31,7 @@ public class thinkingWiresScript : MonoBehaviour
     private int randomColorIndex;
     private int currentBoxIndex;
     private int boxCounter;
-    private List<string> boxColor = new List<string>();
+    private static List<string> boxColor = new List<string>();
     private int firstWireToCut;
     private bool secondStage;
     private string secondWireToCut;
@@ -40,7 +41,6 @@ public class thinkingWiresScript : MonoBehaviour
     private bool colorblind = false;
    
     bool wireToCutFound = false; //A measure to prevent hanging the game from infinite while loop
-    bool breakSuccessful = false;
     bool doorOpened = false;
     bool activated = false;
     //Logging
@@ -48,6 +48,64 @@ public class thinkingWiresScript : MonoBehaviour
     int moduleId;
     private bool moduleSolved;
 
+    private static readonly string[] possibleColorsName = new string[] { "Red", "Green", "Blue", "White", "Cyan", "Magenta", "Yellow", "Black" };
+    private static readonly List<HashSet<string>> colorGroup = new List<HashSet<string>>()
+    {
+        new HashSet<string> { "Red", "Green", "Blue" },
+        new HashSet<string> { "Cyan", "Magenta", "Yellow" },
+        new HashSet<string> { "White", "Black" }
+    };
+    private static readonly List<HashSet<HashSet<string>>> primarySecondaryGroup = new List<HashSet<HashSet<string>>>()
+    {
+        new HashSet<HashSet<string>> { new HashSet<string> { "Yellow" }, new HashSet<string> { "Red", "Green" } },
+        new HashSet<HashSet<string>> { new HashSet<string> { "Magenta" }, new HashSet<string> { "Red", "Blue" } },
+        new HashSet<HashSet<string>> { new HashSet<string> { "Cyan" }, new HashSet<string> { "Green", "Blue" } }
+    };
+    private static int HighestColorGroup(string[] wires)
+    {
+        var colorCounts = colorGroup.Select(colorSet => wires.Count(wiresColor => colorSet.Contains(wiresColor))); //Count the number of colors in each set and put into IEnumerable<int> object
+        var maximum = colorCounts.Max(); //Find maximum value in IEnumberable<int> object
+        var maximumIndices = colorCounts.Select((value, index) => value == maximum ? index : -1).Where(index => index != -1); //Put all indices of value that is equal to maximum
+        return maximumIndices.Count() == 1 ? maximumIndices.ToArray()[0] : 3; //If there is a maximum tie, return index 3
+    }
+    private static int checkSecondaryNextToPrimaries(string[] wires)
+    {
+        var conditionFlag = Enumerable.Range(1, 5).Any(index => primarySecondaryGroup
+        .Any(nestedSet => nestedSet
+        .All(set => set.SetEquals(new HashSet<string> { wires[index] }) ||
+                    set.SetEquals(new HashSet<string> { wires[index - 1], wires[index + 1] }))));
+        return conditionFlag ? 0 : 1;
+    }
+    private static int checkTwoAdjacentComplementary(string[] wires)
+    {
+        var conditionFlag = Enumerable.Range(0, 6)
+            .Any(index => wires[index] != wires[index + 1] &&
+                (Array.IndexOf(possibleColorsName, wires[index]) - Array.IndexOf(possibleColorsName, wires[index + 1]) + 8) % 4 == 0) ? 0 : 1;
+        return conditionFlag;
+    }
+    private Condition[] possibleConditions = new Condition[]
+    {
+                new Condition("Number of primary wires", new[] { "3+", "0 - 2" }, "Red", 0, new[] { 3, 1 }, wires => wires.Count(col => colorGroup[0].Contains(col)) >= 3 ? 0 : 1),
+                new Condition("5th Wire white or black", new[] { "Yes", "No"}, "Blue", 1, new[] { 12, 2}, wires => colorGroup[2].Contains(wires[4]) ? 0 : 1),
+                new Condition("2 adjacent wires are complementary", new[] { "True", "False" }, "Green", 2, new[] { 11, 4 }, wires => checkTwoAdjacentComplementary(wires)),
+                new Condition("7th wire is secondary", new[] { "Yes", "No" }, "Yellow", 3, new[] { 2, 4 }, wires => colorGroup[1].Contains(wires[6]) ? 0 : 1),
+                new Condition("No wires are blue", new[] { "True", "False" }, "Cyan", 4, new[] { 8, 5 }, wires => !wires.Contains("Blue") ? 0 : 1),
+                new Condition("5 or less wire colors present", new[] { "Yes", "No" }, "Blue", 5, new[] { 7, 6 }, wires => wires.Distinct().Count() <= 5 ? 0 : 1),
+                new Condition("Blue wire present", new[] { "Yes", "No" }, "Green", 6, new[] { 7, 10 }, wires => wires.Contains("Blue") ? 0 : 1),
+                new Condition("One of the previous box color not the same as the 6th wire color", new[] { "Yes", "No" }, "Magenta", 7, new[] { 9, 26 }, wires => !boxColor.Contains(wires[5]) ? 0 : 1),
+                new Condition("3rd wire not black, blue, or yellow", new[] { "Yes", "No" }, "Red", 8, new[] { 6, 10 }, wires => (wires[2] != "Black" && wires[2] != "Blue" && wires[2] != "Yellow") ? 0 : 1),
+                new Condition("No wires are white or black", new[] { "True", "False" }, "White", 9, new[] { 24, 25 }, wires => !wires.Any(col => colorGroup[2].Contains(col)) ? 0 : 1),
+                new Condition("First 4 wires all different colors", new[] { "True", "False" }, "Yellow", 10, new[] { 9, 15 }, wires => wires.Where((col, index) => index < 4).Distinct().Count() == 4 ? 0 : 1),
+                new Condition("2nd wire white, black, or red", new[] { "Yes", "No" }, "Black", 11, new[] { 10, 14 }, wires => (wires[1] == "White" || wires[1] == "Black" || wires[1] == "Red") ? 0 : 1),
+                new Condition("No wires are yellow", new[] { "True", "False" }, "Green", 12, new[] { 13, 11 }, wires => !wires.Contains("Yellow") ? 0 : 1),
+                new Condition("1st wire blue, cyan, or green", new[] { "Yes", "No" }, "Cyan", 13, new[] { 14, 16 }, wires => (wires[0] == "Blue" || wires[0] == "Cyan" || wires[0] == "Green") ? 0 : 1),
+                new Condition("2 adjacent wires are the same color (Dummy Rule)", null, "White", 14, new[] { 17 }, wires => 0),
+                new Condition("Most common wire colors", new[] { "RGB", "CMY", "WK", "Tie"}, "Black", 15, new[] { 19, 24, 23, 14 }, wires => HighestColorGroup(wires)),
+                new Condition("One of the previous box color the same as the 4th wire color", new[] { "Yes", "No" }, "Magenta", 16, new[] { 18, 17 }, wires => boxColor.Contains(wires[3]) ? 0 : 1),
+                new Condition("Secondary color adjacent to both it's primary colors", new[] { "True", "False" }, "Blue", 17, new[] { 19, 21 }, wires => checkSecondaryNextToPrimaries(wires)),
+                new Condition("Exactly 3 wires are the same color", new[] { "True", "False" }, "Yellow", 18, new[] { 21, 20 }, wires => wires.Any(color => wires.Where(x => x == color).Count() == 3) ? 0 : 1 ),
+                new Condition("No condition to check. (An empty box)", null, "Cyan", 19, new[] { 22 }, wires => 0),
+    };
     private void Start()
     {
         colorblind = ColorblindMode.ColorblindModeActive;
@@ -113,54 +171,54 @@ public class thinkingWiresScript : MonoBehaviour
 
     private void CutWires(int cutWireIndex)
     {
-        if (doorOpened)
+        if (!doorOpened)
+            return;
+        audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, transform);
+        isCut[cutWireIndex] = true;
+        wires[cutWireIndex].enabled = false;
+        wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(false);
+        wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString() + " Highlight").gameObject.SetActive(false);
+        wiresObject[cutWireIndex].transform.Find("CutWire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(true);
+        foreach (Renderer r in wiresObject[cutWireIndex].GetComponentsInChildren<Renderer>())
         {
-            audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, transform);
-            isCut[cutWireIndex] = true;
-            wires[cutWireIndex].enabled = false;
-            wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(false);
-            wiresObject[cutWireIndex].transform.Find("Wire " + (cutWireIndex + 1).ToString() + " Highlight").gameObject.SetActive(false);
-            wiresObject[cutWireIndex].transform.Find("CutWire " + (cutWireIndex + 1).ToString()).gameObject.SetActive(true);
-            foreach (Renderer r in wiresObject[cutWireIndex].GetComponentsInChildren<Renderer>())
-            {
-                r.material = wireColors[colorIndex[cutWireIndex]];
-            }
-            moduleSelectable.Children[cutWireIndex] = null;
-            moduleSelectable.UpdateChildren();
+            r.material = wireColors[colorIndex[cutWireIndex]];
         }
-        if (!moduleSolved && !handlingStrike && doorOpened)
+        moduleSelectable.Children[cutWireIndex] = null;
+        moduleSelectable.UpdateChildren();
+
+        if (moduleSolved || handlingStrike)
+            return;
+
+        if (!secondStage)
         {
-            if (!secondStage)
+            if ((cutWireIndex + 1) == firstWireToCut)
             {
-                if ((cutWireIndex + 1) == firstWireToCut)
-                {
-                    wireColorNames = wireColorNames.Where(w => w != wireColorNames[cutWireIndex]).ToArray();
-                    secondStage = true;
-                    Debug.LogFormat("[Thinking Wires #{0}] The {1} wire was cut which matches with the correct answer. Advancing to second stage.", moduleId, cutWireIndex + 1);
-                    GenerateAnswerStage2();
-                    SevenSegmentsDisplay();
-                }
-                else
-                {
-                    Debug.LogFormat("[Thinking Wires #{0}] Wire {1} was cut while expecting wire {2}. Strike! Regenerating the module...", moduleId, cutWireIndex + 1, firstWireToCut);
-                    handlingStrike = true;
-                    StartCoroutine(Strike());
-                }
+                wireColorNames = wireColorNames.Where(w => w != wireColorNames[cutWireIndex]).ToArray();
+                secondStage = true;
+                Debug.LogFormat("[Thinking Wires #{0}] The {1} wire was cut which matches with the correct answer. Advancing to second stage.", moduleId, cutWireIndex + 1);
+                GenerateAnswerStage2();
+                SevenSegmentsDisplay();
             }
             else
             {
-                if (originalColorNames[cutWireIndex] == secondWireToCut || secondWireToCut == "Any")
-                {
-                    Debug.LogFormat("[Thinking Wires #{0}] The correct wire has been cut. Module solved!", moduleId);
-                    moduleSolved = true;
-                    StartCoroutine(Solve());
-                }
-                else
-                {
-                    Debug.LogFormat("[Thinking Wires #{0}] {1} Wire was cut while expecting {2} wire. Strike! Regenerating the module...", moduleId, originalColorNames[cutWireIndex], secondWireToCut);
-                    handlingStrike = true;  
-                    StartCoroutine(Strike());
-                }
+                Debug.LogFormat("[Thinking Wires #{0}] Wire {1} was cut while expecting wire {2}. Strike! Regenerating the module...", moduleId, cutWireIndex + 1, firstWireToCut);
+                handlingStrike = true;
+                StartCoroutine(Strike());
+            }
+        }
+        else
+        {
+            if (originalColorNames[cutWireIndex] == secondWireToCut || secondWireToCut == "Any")
+            {
+                Debug.LogFormat("[Thinking Wires #{0}] The correct wire has been cut. Module solved!", moduleId);
+                moduleSolved = true;
+                StartCoroutine(Solve());
+            }
+            else
+            {
+                Debug.LogFormat("[Thinking Wires #{0}] {1} Wire was cut while expecting {2} wire. Strike! Regenerating the module...", moduleId, originalColorNames[cutWireIndex], secondWireToCut);
+                handlingStrike = true;
+                StartCoroutine(Strike());
             }
         }
     }
@@ -279,7 +337,6 @@ public class thinkingWiresScript : MonoBehaviour
             wires[index].enabled = false;
             wiresObject[index].transform.Find("Wire " + (index + 1).ToString() + " Highlight").gameObject.SetActive(false);
         }
-
     }
 
     void SelectColors()
@@ -316,339 +373,19 @@ public class thinkingWiresScript : MonoBehaviour
 
     void GenerateAnswerStage1()
     {
-        while (!wireToCutFound && boxCounter < 15)
+        while (!wireToCutFound && boxCounter < 15 && wireColorNames.Length == 7)
         {
-            switch (currentBoxIndex)
+            if (currentBoxIndex > 19)
             {
-                case 0:
-                    if (wireColorNames.Count(x => x == "Red" || x == "Green" || x == "Blue") >= 3)
-                    {
-                        currentBoxIndex = 3;
-                        Debug.LogFormat("[Thinking Wires #{0}] Number of primary wires: {1}", moduleId, "3+");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 1;
-                        Debug.LogFormat("[Thinking Wires #{0}] Number of primary wires: {1}", moduleId, "0 - 2");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Red");
-                    break;
-                case 1:
-                    if (wireColorNames[4] == "White" || wireColorNames[4] == "Black")
-                    {
-                        currentBoxIndex = 12;
-                        Debug.LogFormat("[Thinking Wires #{0}] 5th Wire white or black: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 2;
-                        Debug.LogFormat("[Thinking Wires #{0}] 5th Wire white or black: {1}", moduleId, "No");
-                    }
-
-                    boxCounter++;
-                    boxColor.Add("Blue");
-                    break;
-                case 2:
-                    breakSuccessful = false;
-                    for (int index = 0; index < wireColorNames.Length - 1; index++)
-                    {
-                        string color1 = wireColorNames[index];
-                        string color2 = wireColorNames[index + 1];
-                        if ((color1 == "Red" && color2 == "Cyan") || (color1 == "Cyan" && color2 == "Red") || (color1 == "Green" && color2 == "Magenta") ||
-                        (color1 == "Magenta" && color2 == "Green") || (color1 == "Blue" && color2 == "Yellow") || (color1 == "Yellow" && color2 == "Blue") ||
-                        (color1 == "White" && color2 == "Black") || (color1 == "Black" && color2 == "White"))
-                        {
-                            currentBoxIndex = 11;
-                            Debug.LogFormat("[Thinking Wires #{0}] 2 adjacent wires are complementary: {1}", moduleId, "True");
-                            breakSuccessful = true;
-                            break;
-                        }
-                    }
-                    if (!breakSuccessful)
-                    {
-                        currentBoxIndex = 4;
-                        Debug.LogFormat("[Thinking Wires #{0}] 2 adjacent wires are complementary: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Green");
-                    break;
-                case 3:
-                    if (wireColorNames[6] == "Cyan" || wireColorNames[6] == "Magenta" || wireColorNames[6] == "Yellow")
-                    {
-                        currentBoxIndex = 2;
-                        Debug.LogFormat("[Thinking Wires #{0}] 7th wire is secondary: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 4;
-                        Debug.LogFormat("[Thinking Wires #{0}] 7th wire is secondary: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Yellow");
-                    break;
-                case 4:
-                    if (!wireColorNames.Any(color => color == "Blue"))
-                    {
-                        currentBoxIndex = 8;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are blue: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 5;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are blue: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Cyan");
-                    break;
-                case 5:
-                    if (wireColorNames.Distinct().Count() <= 5)
-                    {
-                        currentBoxIndex = 7;
-                        Debug.LogFormat("[Thinking Wires #{0}] 5 or less wire colors present: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 6;
-                        Debug.LogFormat("[Thinking Wires #{0}] 5 or less wire colors present: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Blue");
-                    break;
-                case 6:
-                    if (wireColorNames.Any(color => color == "Blue"))
-                    {
-                        currentBoxIndex = 7;
-                        Debug.LogFormat("[Thinking Wires #{0}] Blue wire present: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 10;
-                        Debug.LogFormat("[Thinking Wires #{0}] Blue wire present: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Green");
-                    break;
-                case 7:
-                    if (!boxColor.Contains(wireColorNames[5]))
-                    {
-                        currentBoxIndex = 9;
-                        Debug.LogFormat("[Thinking Wires #{0}] One of the previous box color not the same as the 6th wire color: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 26;
-                        Debug.LogFormat("[Thinking Wires #{0}] One of the previous box color not the same as the 6th wire color: {1}", moduleId, "No");
-                    }
-
-                    boxCounter++;
-                    boxColor.Add("Magenta");
-                    break;
-                case 8:
-                    if (wireColorNames[2] != "Black" && wireColorNames[2] != "Blue" && wireColorNames[2] != "Yellow")
-                    {
-                        currentBoxIndex = 6;
-                        Debug.LogFormat("[Thinking Wires #{0}] 3rd wire not black, blue, or yellow: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 10;
-                        Debug.LogFormat("[Thinking Wires #{0}] 3rd wire not black, blue, or yellow: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Red");
-                    break;
-                case 9:
-                    if (!wireColorNames.Any(color => color == "White" || color == "Black"))
-                    {
-                        currentBoxIndex = 24;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are white or black: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 25;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are white or black: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("White");
-                    break;
-                case 10:
-                    if (wireColorNames.Where((color, index) => index < 4).Distinct().Count() == 4)
-                    {
-                        currentBoxIndex = 9;
-                        Debug.LogFormat("[Thinking Wires #{0}] First 4 wires all different colors: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 15;
-                        Debug.LogFormat("[Thinking Wires #{0}] First 4 wires all different colors: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Yellow");
-                    break;
-                case 11:
-                    if (wireColorNames[1] == "White" || wireColorNames[1] == "Black" || wireColorNames[1] == "Red")
-                    {
-                        currentBoxIndex = 10;
-                        Debug.LogFormat("[Thinking Wires #{0}] 2nd wire white black or red: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 14;
-                        Debug.LogFormat("[Thinking Wires #{0}] 2nd wire white black or red: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Black");
-                    break;
-                case 12:
-                    if (!wireColorNames.Contains("Yellow"))
-                    {
-                        currentBoxIndex = 13;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are yellow: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 11;
-                        Debug.LogFormat("[Thinking Wires #{0}] No wires are yellow: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Green");
-                    break;
-                case 13:
-                    if (wireColorNames[0] == "Blue" || wireColorNames[0] == "Cyan" || wireColorNames[0] == "Green")
-                    {
-                        currentBoxIndex = 14;
-                        Debug.LogFormat("[Thinking Wires #{0}] 1st wire blue, cyan, or green: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 16;
-                        Debug.LogFormat("[Thinking Wires #{0}] 1st wire blue, cyan, or green: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Cyan");
-                    break;
-                case 14:
-                    currentBoxIndex = 17;
-                    Debug.LogFormat("[Thinking Wires #{0}] 2 adjacent wires are the same color (Dummy Rule)", moduleId);
-                    boxCounter++;
-                    boxColor.Add("White");
-                    break;
-                case 15:
-                    int primaryCount = wireColorNames.Count(x => x == "Red" || x == "Green" || x == "Blue");
-                    int secondaryCount = wireColorNames.Count(x => x == "Cyan" || x == "Magenta" || x == "Yellow");
-                    int bwCount = wireColorNames.Count(x => x == "White" || x == "Black");
-                    if (primaryCount > secondaryCount && primaryCount > bwCount)
-                    {
-                        currentBoxIndex = 19;
-                        Debug.LogFormat("[Thinking Wires #{0}] Most common wire colors: {1}", moduleId, "RGB");
-                    }
-                    else if (secondaryCount > primaryCount && secondaryCount > bwCount)
-                    {
-                        currentBoxIndex = 24;
-                        Debug.LogFormat("[Thinking Wires #{0}] Most common wire colors: {1}", moduleId, "CMY");
-                    }
-                    else if (bwCount > primaryCount && bwCount > secondaryCount)
-                    {
-                        currentBoxIndex = 23;
-                        Debug.LogFormat("[Thinking Wires #{0}] Most common wire colors: {1}", moduleId, "WK");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 14;
-                        Debug.LogFormat("[Thinking Wires #{0}] Most common wire colors: {1}", moduleId, "Tie");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Black");
-                    break;
-                case 16:
-                    if (boxColor.Contains(wireColorNames[3]))
-                    {
-                        currentBoxIndex = 18;
-                        Debug.LogFormat("[Thinking Wires #{0}] One of the previous box color the same as the 4th wire color: {1}", moduleId, "Yes");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 17;
-                        Debug.LogFormat("[Thinking Wires #{0}] One of the previous box color the same as the 4th wire color: {1}", moduleId, "No");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Magenta");
-                    break;
-                case 17:
-                    breakSuccessful = false;
-                    for (int index = 1; index < wireColorNames.Length - 1; index++)
-                    {
-                        string color1 = wireColorNames[index - 1];
-                        string color2 = wireColorNames[index];
-                        string color3 = wireColorNames[index + 1];
-                        if ((color2 == "Cyan" && ((color1 == "Green" && color3 == "Blue") || (color1 == "Blue" && color3 == "Green"))) ||
-                        (color2 == "Magenta" && ((color1 == "Red" && color3 == "Blue") || (color1 == "Blue" && color3 == "Red"))) ||
-                        (color2 == "Yellow" && ((color1 == "Red" && color3 == "Green") || (color1 == "Green" && color3 == "Red"))))
-                        {
-                            currentBoxIndex = 19;
-                            Debug.LogFormat("[Thinking Wires #{0}] Secondary color adjacent to both it's primary colors: {1}", moduleId, "True");
-                            breakSuccessful = true;
-                            break;
-                        }
-                    }
-                    if (!breakSuccessful)
-                    {
-                        currentBoxIndex = 21;
-                        Debug.LogFormat("[Thinking Wires #{0}] Secondary color adjacent to both it's primary colors: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Blue");
-                    break;
-                case 18:
-                    if (wireColorNames.Any(color => wireColorNames.Where(x => x == color).Count() == 3))
-                    {
-                        currentBoxIndex = 21;
-                        Debug.LogFormat("[Thinking Wires #{0}] 3 wires are the same color: {1}", moduleId, "True");
-                    }
-                    else
-                    {
-                        currentBoxIndex = 20;
-                        Debug.LogFormat("[Thinking Wires #{0}] 3 wires are the same color: {1}", moduleId, "False");
-                    }
-                    boxCounter++;
-                    boxColor.Add("Yellow");
-                    break;
-                case 19:
-                    currentBoxIndex = 22;
-                    Debug.LogFormat("[Thinking Wires #{0}] No condition to check. (An empty box)", moduleId);
-                    boxCounter++;
-                    boxColor.Add("Cyan");
-                    break;
-                case 20:
-                    firstWireToCut = 1;
-                    wireToCutFound = true;
-                    break;
-                case 21:
-                    firstWireToCut = 2;
-                    wireToCutFound = true;
-                    break;
-                case 22:
-                    firstWireToCut = 3;
-                    wireToCutFound = true;
-                    break;
-                case 23:
-                    firstWireToCut = 4;
-                    wireToCutFound = true;
-                    break;
-                case 24:
-                    firstWireToCut = 5;
-                    wireToCutFound = true;
-                    break;
-                case 25:
-                    firstWireToCut = 6;
-                    wireToCutFound = true;
-                    break;
-                case 26:
-                    firstWireToCut = 7;
-                    wireToCutFound = true;
-                    break;
+                firstWireToCut = currentBoxIndex - 19;
+                wireToCutFound = true;
+                break;
             }
+            possibleConditions[currentBoxIndex].setWires(wireColorNames);
+            Debug.LogFormat("[Thinking Wires #{0}] {1}", moduleId, possibleConditions[currentBoxIndex].LogMessage);
+            boxColor.Add(possibleConditions[currentBoxIndex].BoxColor);
+            currentBoxIndex = possibleConditions[currentBoxIndex].NextBox;
+            boxCounter++;
         }
         Debug.LogFormat("[Thinking Wires #{0}] The first wire that is needed to be cut is wire {1}.", moduleId, firstWireToCut);
         if (!wireToCutFound)
@@ -835,7 +572,7 @@ public class thinkingWiresScript : MonoBehaviour
             yield return null;
             yield break;
         }
-        string[] parameters = command.Split(' ');
+        string[] parameters = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (Regex.IsMatch(parameters[0], @"^\s*cut\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant) && parameters.Length == 2)
         {
             if (Regex.IsMatch(parameters[1], @"^\s*[1-7]\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))

@@ -16,7 +16,7 @@ MonoBehaviour:
   author: kavinkul
   description: "These wires are not like any others. They are also sentient. You must
     destroy them ASAP!\n\nModule created by: kavinkul\nModule idea by: Blananas2\n\nManual:
-    \n\nGithub: \n\nTP supported"
-  version: 1.0
+    \n\nGithub: https://github.com/kavinkul/ktane-thinkingWires\n\nTP supported"
+  version: 1.6
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 9e44f6a7182f2b44b904b33575a06945, type: 3}
