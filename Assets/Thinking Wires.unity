@@ -221,6 +221,11 @@ Prefab:
       propertyPath: m_Name
       value: Thinking Wires Module
       objectReference: {fileID: 0}
+    - target: {fileID: 23181297814141838, guid: d07e78f84523560498ed8c7d3d947af1,
+        type: 2}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: df5aa6caab350c64e9473c1d8f0795cf, type: 2}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: d07e78f84523560498ed8c7d3d947af1, type: 2}
   m_IsPrefabParent: 0
