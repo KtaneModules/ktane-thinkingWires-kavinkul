@@ -100,7 +100,7 @@ public class thinkingWiresScript : MonoBehaviour
                 new Condition("No wires are yellow", new[] { "True", "False" }, "Green", 12, new[] { 13, 11 }, wires => !wires.Contains("Yellow") ? 0 : 1),
                 new Condition("1st wire blue, cyan, or green", new[] { "Yes", "No" }, "Cyan", 13, new[] { 14, 16 }, wires => (wires[0] == "Blue" || wires[0] == "Cyan" || wires[0] == "Green") ? 0 : 1),
                 new Condition("2 adjacent wires are the same color (Dummy Rule)", null, "White", 14, new[] { 17 }, wires => 0),
-                new Condition("Most common wire colors", new[] { "RGB", "CMY", "WK", "Tie"}, "Black", 15, new[] { 19, 24, 23, 14 }, wires => HighestColorGroup(wires)),
+                new Condition("Most common wire colors", new[] { "RGB", "CMY", "WK", "Tie"}, "Black", 15, new[] { 19, 9, 23, 14 }, wires => HighestColorGroup(wires)),
                 new Condition("One of the previous box color the same as the 4th wire color", new[] { "Yes", "No" }, "Magenta", 16, new[] { 18, 17 }, wires => boxColor.Contains(wires[3]) ? 0 : 1),
                 new Condition("Secondary color adjacent to both it's primary colors", new[] { "True", "False" }, "Blue", 17, new[] { 19, 21 }, wires => checkSecondaryNextToPrimaries(wires)),
                 new Condition("Exactly 3 wires are the same color", new[] { "True", "False" }, "Yellow", 18, new[] { 21, 20 }, wires => wires.Any(color => wires.Where(x => x == color).Count() == 3) ? 0 : 1 ),
@@ -341,9 +341,14 @@ public class thinkingWiresScript : MonoBehaviour
 
     void SelectColors()
     {
+        //Test code
+        //Red = 0, Green = 1, Blue = 2, White = 6, Cyan = 3, Magenta = 4, Yellow = 5, Black = 7
+        //int[] testColors = new int[7] {4, 0, 4, 4, 1, 6, 7};
         for (int index = 0; index < 7; index++)
         {
             randomColorIndex = Rnd.Range(0, 8);
+            //Test Code
+            //randomColorIndex = testColors[index];
             foreach (Renderer r in wiresObject[index].GetComponentsInChildren<Renderer>())
             {
                 r.material = wireColors[randomColorIndex];
