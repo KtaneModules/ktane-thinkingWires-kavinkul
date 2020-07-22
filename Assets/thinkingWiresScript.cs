@@ -315,7 +315,7 @@ public class thinkingWiresScript : MonoBehaviour
         if ((m = Regex.Match(cmd, @"^cut\s+([1-7])$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)).Success)
         {
             int wireIndex = int.Parse(m.Groups[1].Value) - 1;
-            if (_allWires[wireIndex][0].activeInHierarchy && ModuleSelectable.Children[0] == Placeholder)
+            if (_allWires[wireIndex][0].activeInHierarchy && ModuleSelectable.Children[0] != Placeholder)
             {
                 yield return null;
                 _allWires[wireIndex][0].GetComponent<KMSelectable>().OnInteract();
