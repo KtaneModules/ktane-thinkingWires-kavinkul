@@ -27,9 +27,7 @@ namespace Utilities
                     i++;
 
                     if (i >= 2)
-                    {
                         yield return selector(item1, item2);
-                    }
                 }
             }
         }
@@ -57,10 +55,26 @@ namespace Utilities
                     i++;
 
                     if (i >= 3)
-                    {
                         yield return selector(item1, item2, item3);
-                    }
                 }
+            }
+        }
+
+        public static IEnumerable<TResult> Zip<TSourceA, TSourceB, TResult>(this IEnumerable<TSourceA> sourceA, IEnumerable<TSourceB> sourceB, Func<TSourceA, TSourceB, TResult> selector)
+        {
+            if (sourceA == null) throw new ArgumentNullException("sourceA can't be null.");
+            if (sourceB == null) throw new ArgumentNullException("sourceB can't be null");
+
+            return ZipImpl(sourceA, sourceB, selector);
+        }
+
+        private static IEnumerable<TResult> ZipImpl<TSourceA, TSourceB, TResult>(this IEnumerable<TSourceA> sourceA, IEnumerable<TSourceB> sourceB, Func<TSourceA, TSourceB, TResult> selector)
+        {
+            using (var iteratorA = sourceA.GetEnumerator())
+            using (var iteratorB = sourceB.GetEnumerator())
+            {
+                while (iteratorA.MoveNext() && iteratorB.MoveNext())
+                    yield return selector(iteratorA.Current, iteratorB.Current);
             }
         }
     }

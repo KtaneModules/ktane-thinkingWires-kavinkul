@@ -85,7 +85,7 @@ GameObject:
   - component: {fileID: 4017396350833276}
   - component: {fileID: 33061586592666914}
   - component: {fileID: 23254324963996308}
-  - component: {fileID: 114591963083166710}
+  - component: {fileID: 114669676788968992}
   m_Layer: 0
   m_Name: D Battery (1)
   m_TagString: Untagged
@@ -428,7 +428,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShaderNames:
   - Legacy Shaders/Diffuse
---- !u!114 &114591963083166710
+--- !u!114 &114669676788968992
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}

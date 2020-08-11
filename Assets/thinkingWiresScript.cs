@@ -20,6 +20,9 @@ public class thinkingWiresScript : MonoBehaviour
     public MeshRenderer[] RightDigit;
     public GameObject[] UncutWires;
     public GameObject[] CutWires;
+    public MeshRenderer[] UncutWiresMesh;
+    public MeshRenderer[] CutWiresMesh;
+    public KMSelectable[] UncutWiresSelectable;
     public Animator WiresDoorAnimator;
     public Material[] Colors;
     public Material[] DisplayColor;
@@ -27,6 +30,7 @@ public class thinkingWiresScript : MonoBehaviour
     public TextMesh[] ColorblindTexts;
 
     private GameObject[][] _allWires;
+    private MeshRenderer[][] _allWiresMesh;
     private tEnum[] _wiresColors;
     private List<FlowChartNode> _visitedNode = new List<FlowChartNode>();
     private static readonly string[][] _responses = new string[2][]
@@ -58,33 +62,33 @@ public class thinkingWiresScript : MonoBehaviour
         _colorblind = ColorblindMode.ColorblindModeActive;
         InitFlowChart();
         _moduleId = moduleIdCounter++;
-        _allWires = UncutWires.SelectMany((wire, index) => CutWires.Where((_, index2) => index == index2).Select(wire2 => new[] { wire, wire2 })).ToArray();
-        foreach (GameObject[] wires in _allWires)
+        _allWires = UncutWires.Zip(CutWires, (uncut, cut) => new[] { uncut, cut }).ToArray();
+        _allWiresMesh = UncutWiresMesh.Zip(CutWiresMesh, (uncut, cut) => new[] { uncut, cut }).ToArray();
+        for (int i = 0; i < UncutWiresSelectable.Length; i++)
         {
-            GameObject[] wire = wires;
-            wires[0].GetComponent<KMSelectable>().OnInteract += delegate { StartCoroutine(CutWire(wire)); return false; };
+            int j = i;
+            UncutWiresSelectable[i].OnInteract += delegate { StartCoroutine(CutWire(j)); return false; };
         }
-
         Module.OnActivate += delegate { StartCoroutine(DoorAnimation(close: false)); };
     }
-    private IEnumerator CutWire(GameObject[] wires)
+    private IEnumerator CutWire(int index)
     {
-        if (!wires[0].activeInHierarchy || ModuleSelectable.Children[0] == Placeholder) yield break;
-        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, wires[0].transform);
-        wires[0].SetActive(false);
-        wires[1].SetActive(true);
-        ModuleSelectable.Children[Array.IndexOf(_allWires, wires)] = null;
+        if (!_allWires[index][0].activeInHierarchy || ModuleSelectable.Children[0] == Placeholder) yield break;
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.WireSnip, _allWires[index][0].transform);
+        _allWires[index][0].SetActive(false);
+        _allWires[index][1].SetActive(true);
+        ModuleSelectable.Children[index] = null;
         ModuleSelectable.UpdateChildren();
         if (WiresDoorAnimator.GetBool("Transitioning"))
             yield break;
         WiresDoorAnimator.SetBool("Transitioning", true);
-        if (!_secondStage && Array.IndexOf(_allWires, wires) + 1 == firstWireToCut)
+        if (!_secondStage && index + 1 == firstWireToCut)
         {
             Debug.LogFormat("[Thinking Wires #{0}] Wire {1} was cut which is correct. Progressing to the second stage.", _moduleId, firstWireToCut);
             _secondStage = true;
             StartCoroutine(DoorAnimation());
         }
-        else if (_secondStage && (_secondWireToCutEnum == null || _wiresColors[Array.IndexOf(_allWires, wires)] == _secondWireToCutEnum))
+        else if (_secondStage && (_secondWireToCutEnum == null || _wiresColors[index] == _secondWireToCutEnum))
         {
             if (_secondWireToCutEnum == null)
                 Debug.LogFormat("[Thinking Wires #{0}] A wire was cut which is always valid. Solving the module.", _moduleId);
@@ -99,9 +103,9 @@ public class thinkingWiresScript : MonoBehaviour
         else
         {
             if (!_secondStage)
-                Debug.LogFormat("[Thinking Wires #{0}] Wire {1} was cut when wire {2} must be cut during stage 1. Resetting the module and initiating a strike.", _moduleId, Array.IndexOf(_allWires, wires) + 1, firstWireToCut);
+                Debug.LogFormat("[Thinking Wires #{0}] Wire {1} was cut when wire {2} must be cut during stage 1. Resetting the module and initiating a strike.", _moduleId, index + 1, firstWireToCut);
             else
-                Debug.LogFormat("[Thinking Wires #{0}] {1} wire was cut when any {2} wire must be cut during stage 2. Resetting the module and initiating a strike.", _moduleId, _wiresColors[Array.IndexOf(_allWires, wires)].ToString(), secondWireToCut.ToLowerInvariant());
+                Debug.LogFormat("[Thinking Wires #{0}] {1} wire was cut when any {2} wire must be cut during stage 2. Resetting the module and initiating a strike.", _moduleId, _wiresColors[index].ToString(), secondWireToCut.ToLowerInvariant());
             Module.HandleStrike();
             _secondStage = false;
             _visitedNode.Clear();
@@ -132,7 +136,7 @@ public class thinkingWiresScript : MonoBehaviour
             yield return new WaitUntil(() => WiresDoorAnimator.GetCurrentAnimatorStateInfo(0).IsName("Door Opened"));
             foreach (GameObject[] go in _allWires)
                 go[0].transform.GetChild(0).gameObject.SetActive(true);
-            ModuleSelectable.Children = _allWires.Select(go => go[0].GetComponent<KMSelectable>()).ToArray();
+            ModuleSelectable.Children = UncutWiresSelectable.ToArray();
             ModuleSelectable.UpdateChildren();
             if (_colorblind)
                 foreach (TextMesh tx in ColorblindTexts)
@@ -234,12 +238,12 @@ public class thinkingWiresScript : MonoBehaviour
         }
         foreach (TextMesh tx in ColorblindTexts)
             tx.text = _wiresColors[Array.IndexOf(ColorblindTexts, tx)] == tEnum.Black ? "K" : _wiresColors[Array.IndexOf(ColorblindTexts, tx)].ToString().Substring(0, 1);
-        foreach (GameObject[] go in _allWires)
+        for (int i = 0; i < _allWires.Length; i++)
         {
-            go[0].GetComponent<MeshRenderer>().material = Colors[(int)_wiresColors[Array.IndexOf(_allWires, go)]];
-            go[0].SetActive(true);
-            go[1].GetComponent<MeshRenderer>().material = Colors[(int)_wiresColors[Array.IndexOf(_allWires, go)]];
-            go[1].SetActive(false);
+            _allWiresMesh[i][0].material = Colors[(int)_wiresColors[i]];
+            _allWires[i][0].SetActive(true);
+            _allWiresMesh[i][1].material = Colors[(int)_wiresColors[i]];
+            _allWires[i][1].SetActive(false);
         }
     }
     private void SetDisplay(bool setOff = false, bool setGreen = false)
@@ -285,15 +289,15 @@ public class thinkingWiresScript : MonoBehaviour
             if (moduleSolved) yield break;
             if (!_secondStage)
             {
-                _allWires[firstWireToCut - 1][0].GetComponent<KMSelectable>().OnInteract();
+                UncutWiresSelectable[firstWireToCut - 1].OnInteract();
                 yield return new WaitForSeconds(.1f);
             }
             else
             {
                 if (_secondWireToCutEnum == null)
-                    _allWires[Rnd.Range(0, 7)][0].GetComponent<KMSelectable>().OnInteract();
+                    UncutWiresSelectable[Rnd.Range(0, 7)].OnInteract();
                 else
-                    _allWires[Array.IndexOf(_wiresColors, _secondWireToCutEnum)][0].GetComponent<KMSelectable>().OnInteract();
+                    UncutWiresSelectable[Array.IndexOf(_wiresColors, _secondWireToCutEnum)].OnInteract();
                 yield return new WaitForSeconds(.1f);
             }
         }
@@ -318,7 +322,7 @@ public class thinkingWiresScript : MonoBehaviour
             if (_allWires[wireIndex][0].activeInHierarchy && ModuleSelectable.Children[0] != Placeholder)
             {
                 yield return null;
-                _allWires[wireIndex][0].GetComponent<KMSelectable>().OnInteract();
+                UncutWiresSelectable[wireIndex].OnInteract();
                 yield return new WaitForSeconds(.1f);
                 yield return "solve";
             }
