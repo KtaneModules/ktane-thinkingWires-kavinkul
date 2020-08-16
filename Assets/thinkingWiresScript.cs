@@ -38,6 +38,7 @@ public class thinkingWiresScript : MonoBehaviour
         new string[2] { "Yes", "No" },
         new string[2] { "True", "False" }
     };
+    private static readonly tEnum[] _secondaryColors = new tEnum[3] { tEnum.Cyan, tEnum.Magenta, tEnum.Yellow };
     private FlowChart _conditions;
 
     private int _displayNumber;
@@ -152,12 +153,8 @@ public class thinkingWiresScript : MonoBehaviour
             new FlowChartNode("Start", 0, new[] { "<Evaluating at the next index>" }, new[] { 1 }, wires => 0),
             new FlowChartNode("Number of primary wires", 1, new[] { "0-2", "3+" }, new[] { 2, 4 }, wires => wires.Count(wire => new[] { tEnum.Red, tEnum.Green, tEnum.Blue }.Contains(wire)) <= 2 ? 0 : 1, tEnum.Red),
             new FlowChartNode("5th wire is white or black", 2, _responses[0], new[] { 12, 3 }, wires =>  new [] { tEnum.White, tEnum.Black }.Contains(wires[4]) ? 0 : 1, tEnum.Blue),
-            new FlowChartNode("2 adjacent wires' colors are complementary", 3, _responses[1], new[] { 11, 5 }, wires => wires.SelectTwo((wire1, wire2) => new[] { wire1, wire2 })
-                                                                                                                                         .Any(pair => (pair.Contains(tEnum.Red) && pair.Contains(tEnum.Cyan))||
-                                                                                                                                                      (pair.Contains(tEnum.Green) && pair.Contains(tEnum.Magenta)) ||
-                                                                                                                                                      (pair.Contains(tEnum.Blue) && pair.Contains(tEnum.Yellow)) ||
-                                                                                                                                                      (pair.Contains(tEnum.White) && pair.Contains(tEnum.Black))) ? 0 : 1, tEnum.Green),
-            new FlowChartNode("7th wire's color is secondary", 4, _responses[0], new[] { 3, 5 }, wires => new[] { tEnum.Cyan, tEnum.Magenta, tEnum.Yellow }.Contains(wires[6]) ? 0 : 1, tEnum.Yellow),
+            new FlowChartNode("2 adjacent wires' colors are complementary", 3, _responses[1], new[] { 11, 5 }, wires => wires.SelectTwo((wire1, wire2) => new[] { wire1, wire2 }).Any(pair => (int) pair[0] + (int) pair[1] == (int) tEnum.White) ? 0 : 1, tEnum.Green),
+            new FlowChartNode("7th wire's color is secondary", 4, _responses[0], new[] { 3, 5 }, wires => _secondaryColors.Contains(wires[6]) ? 0 : 1, tEnum.Yellow),
             new FlowChartNode("No wires are blue", 5,  _responses[1], new[] { 9, 6 }, wires => !wires.Contains(tEnum.Blue) ? 0 : 1, tEnum.Cyan),
             new FlowChartNode("5 or less wires' colors are present", 6, _responses[0], new[] { 8, 7 }, wires => wires.Distinct().Count() <= 5 ? 0 : 1, tEnum.Blue),
             new FlowChartNode("Blue wire is present", 7, _responses[0], new[] { 8, 10 }, wires => wires.Contains(tEnum.Blue) ? 0 : 1, tEnum.Green),
@@ -172,23 +169,16 @@ public class thinkingWiresScript : MonoBehaviour
                                                                                                                                                                  int[] colorCounts = new int[3]
                                                                                                                                                                  {
                                                                                                                                                                      wires.Count(wire => new[] { tEnum.Red, tEnum.Green, tEnum.Blue }.Contains(wire)),
-                                                                                                                                                                     wires.Count(wire => new[] { tEnum.Cyan, tEnum.Magenta, tEnum.Yellow }.Contains(wire)),
+                                                                                                                                                                     wires.Count(wire => _secondaryColors.Contains(wire)),
                                                                                                                                                                      wires.Count(wire => new[] { tEnum.White, tEnum.Black }.Contains(wire))
                                                                                                                                                                  };
                                                                                                                                                                  return colorCounts.Count(ct => ct == colorCounts.Max()) == 1 ? Array.IndexOf(colorCounts, colorCounts.Max()) : 3;
                                                                                                                                                              }, tEnum.Black),
             new FlowChartNode("4th wire's color is the same as one of the previous steps' color", 16, _responses[0], new[] { 20, 17 }, wires => _visitedNode.Select(node => node.BoxColor).Contains(wires[3]) ? 0 : 1, tEnum.Magenta),
-            new FlowChartNode("There is a secondary colored wire adjacent to both of its primary colors", 17, _responses[1], new[] { 18, 22 }, wires => {
-                                                                                                                                                             var complementary = new Dictionary<tEnum, tEnum[]>()
-                                                                                                                                                             {
-                                                                                                                                                                 { tEnum.Cyan, new tEnum[] { tEnum.Green, tEnum.Blue } },
-                                                                                                                                                                 { tEnum.Magenta, new tEnum[] { tEnum.Red, tEnum.Blue } },
-                                                                                                                                                                 { tEnum.Yellow, new tEnum[] { tEnum.Red, tEnum.Green } }
-                                                                                                                                                             };
-                                                                                                                                                             return wires.SelectThree((wire1, wire2, wire3) => new[] { wire1, wire2, wire3 })
-                                                                                                                                                                         .Where(triplet => new[] { tEnum.Cyan, tEnum.Magenta, tEnum.Yellow }.Contains(triplet[1]) && triplet[0] != triplet[2])
-                                                                                                                                                                         .Any(triplet => complementary[triplet[1]].Contains(triplet[0]) && complementary[triplet[1]].Contains(triplet[2])) ? 0 : 1;
-                                                                                                                                                         }, tEnum.Blue),
+            new FlowChartNode("There is a secondary colored wire adjacent to both of its primary colors", 17, _responses[1], new[] { 18, 22 }, wires => wires.SelectThree((wire1, wire2, wire3) => new[] { wire1, wire2, wire3 })
+                                                                                                                                                             .Any(triplet => _secondaryColors.Contains(triplet[1]) &&
+                                                                                                                                                                             _secondaryColors.Concat(triplet).Distinct().Count() == 5 &&
+                                                                                                                                                                             (int) triplet[0] + (int) triplet[2] == (int) triplet[1]) ? 0 : 1, tEnum.Blue),
             new FlowChartNode("<Empty Box>", 18, new[] { "<Empty>" }, new[] { 23 }, wires => 0, tEnum.Cyan),
             new FlowChartNode("No wires are white or black", 19, _responses[1], new[] { 25, 26 }, wires => !wires.Contains(tEnum.White) && !wires.Contains(tEnum.Black) ? 0 : 1, tEnum.White),
             new FlowChartNode("Exactly 3 wires have the same color", 20, _responses[1], new[] { 22, 21 }, wires => wires.Any(color => wires.Where(x => x == color).Count() == 3) ? 0 : 1, tEnum.Yellow),

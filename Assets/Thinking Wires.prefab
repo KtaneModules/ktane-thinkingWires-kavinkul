@@ -4929,14 +4929,14 @@ MonoBehaviour:
   - {fileID: 114398681571288226}
   WiresDoorAnimator: {fileID: 95458836404313020}
   Colors:
+  - {fileID: 2100000, guid: df5aa6caab350c64e9473c1d8f0795cf, type: 2}
   - {fileID: 2100000, guid: 0b8345d6190d14013b825698a59f7759, type: 2}
   - {fileID: 2100000, guid: c92df957d0075664b9b1991ed1815c6a, type: 2}
-  - {fileID: 2100000, guid: c3e8c25400b8d457cabe09d99fa1f1f9, type: 2}
-  - {fileID: 2100000, guid: a086244c976384801b25627d5d4b7a92, type: 2}
-  - {fileID: 2100000, guid: 75ca714735eb73b4aba445eb43892d8b, type: 2}
-  - {fileID: 2100000, guid: 67b010a6e7a5bac49b360aa910da9943, type: 2}
   - {fileID: 2100000, guid: 4659d4f547d3d4bd8bc0f31048ceb950, type: 2}
-  - {fileID: 2100000, guid: df5aa6caab350c64e9473c1d8f0795cf, type: 2}
+  - {fileID: 2100000, guid: c3e8c25400b8d457cabe09d99fa1f1f9, type: 2}
+  - {fileID: 2100000, guid: 67b010a6e7a5bac49b360aa910da9943, type: 2}
+  - {fileID: 2100000, guid: 75ca714735eb73b4aba445eb43892d8b, type: 2}
+  - {fileID: 2100000, guid: a086244c976384801b25627d5d4b7a92, type: 2}
   DisplayColor:
   - {fileID: 2100000, guid: df5aa6caab350c64e9473c1d8f0795cf, type: 2}
   - {fileID: 2100000, guid: b93191bc0c351b54fa1742c2543f46ec, type: 2}
