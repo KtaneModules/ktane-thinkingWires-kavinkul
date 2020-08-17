@@ -300,7 +300,7 @@ public class thinkingWiresScript : MonoBehaviour
             if (_colorblind)
                 yield break;
             _colorblind = true;
-            if(ModuleSelectable.Children[0] == Placeholder)
+            if(ModuleSelectable.Children[0] != Placeholder)
                 foreach (TextMesh tx in ColorblindTexts)
                     tx.gameObject.SetActive(true);
             yield break;
